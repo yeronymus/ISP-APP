@@ -5,21 +5,21 @@ import { AlertCircle } from "lucide-react";
 interface AdditionalTaskModalProps {
   show: boolean;
   additionalTaskDraft: string;
-  additionalTaskCostDraft: string;
   onClose: () => void;
   onSubmit: () => void;
   onTaskDraftChange: (value: string) => void;
-  onCostDraftChange: (value: string) => void;
+  onPhotoUpload: () => void;
+  photosDraft: string[];
 }
 
 export function AdditionalTaskModal({
   show,
   additionalTaskDraft,
-  additionalTaskCostDraft,
   onClose,
   onSubmit,
   onTaskDraftChange,
-  onCostDraftChange,
+  onPhotoUpload,
+  photosDraft,
 }: AdditionalTaskModalProps) {
   return (
     <AnimatePresence>
@@ -45,12 +45,12 @@ export function AdditionalTaskModal({
               <div className="flex-1">
                 <h3 className="text-xl font-bold text-gray-900 mb-1">Report Additional Issue</h3>
                 <p className="text-sm text-gray-600">
-                  Describe the issue found and estimated cost for client approval
+                  Describe the issue found for advisor review and client approval
                 </p>
               </div>
             </div>
 
-            <div className="space-y-4 mb-6">
+            <div className="space-y-6 mb-6">
               <div>
                 <label className="text-sm font-semibold text-gray-700 mb-2 block">
                   Issue Description
@@ -67,15 +67,22 @@ export function AdditionalTaskModal({
 
               <div>
                 <label className="text-sm font-semibold text-gray-700 mb-2 block">
-                  Estimated Cost (Kč)
+                  Evidence Photos
                 </label>
-                <input
-                  type="number"
-                  value={additionalTaskCostDraft}
-                  onChange={(e) => onCostDraftChange(e.target.value)}
-                  placeholder="e.g., 2500"
-                  className="w-full px-4 py-3 border border-gray-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:border-transparent text-sm"
-                />
+                <div className="grid grid-cols-4 gap-2">
+                  {photosDraft.map((url, i) => (
+                    <div key={i} className="aspect-square rounded-lg border border-gray-200 overflow-hidden shadow-sm">
+                      <img src={url} className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                  <button
+                    onClick={onPhotoUpload}
+                    className="aspect-square rounded-lg border-2 border-dashed border-gray-300 flex flex-col items-center justify-center text-gray-400 hover:border-amber-500 hover:text-amber-500 transition-colors"
+                  >
+                    <span className="text-xl font-bold">+</span>
+                    <span className="text-[10px] font-bold uppercase">Photo</span>
+                  </button>
+                </div>
               </div>
             </div>
 
@@ -88,10 +95,10 @@ export function AdditionalTaskModal({
               </button>
               <button
                 onClick={onSubmit}
-                disabled={!additionalTaskDraft?.trim() || !additionalTaskCostDraft?.trim()}
+                disabled={!additionalTaskDraft?.trim()}
                 className="flex-1 px-4 py-3 bg-amber-600 text-white rounded-xl font-semibold hover:bg-amber-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed"
               >
-                Send to Client
+                Send to Advisor
               </button>
             </div>
           </motion.div>

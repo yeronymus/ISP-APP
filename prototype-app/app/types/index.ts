@@ -8,6 +8,8 @@ export interface Part {
   available: boolean;
   quantity: number;
   price: number;
+  supplier?: string;
+  deliveryDays?: number;
   estimatedDelivery?: string;
 }
 
@@ -58,6 +60,9 @@ export interface AdditionalTask {
   declined: boolean;
   hoursSpent?: number; // Часы, потраченные механиком на задачу
   completed?: boolean;
+  sentToAdmin?: boolean;
+  sentToClient?: boolean;
+  photos?: string[];
 }
 
 export interface Order {
@@ -71,6 +76,7 @@ export interface Order {
   scheduledTime?: string;
   photos?: string[];
   requiredParts?: Part[];
+  prefersOriginalParts?: boolean;
 }
 
 export interface Client {
@@ -123,6 +129,8 @@ export interface SystemState {
     issue: string;
     photos: string[];
     selectedServices: string[];
+    prefersOriginalParts: boolean;
+    clientName: string;
   };
   requiredParts: Part[];
   availableSlots: TimeSlot[];
@@ -153,4 +161,9 @@ export interface SystemState {
   currentMechanicView: string | null;
   workStartTime: number | null;
   workElapsedSeconds: number;
+  selectedClientId: string | null;
+  slotsSuggested: boolean;
+  maxStepReached: number;
+  requestDeclined: boolean;
+  additionalTaskPhotosDraft: string[];
 }

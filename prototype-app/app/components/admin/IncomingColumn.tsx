@@ -1,6 +1,6 @@
 import React from "react";
 import { motion } from "framer-motion";
-import { Info } from "lucide-react";
+import { Info, Users } from "lucide-react";
 import { mockStandardServices, mockServiceHistory } from "../../constants/mockData";
 
 interface IncomingColumnProps {
@@ -12,9 +12,14 @@ interface IncomingColumnProps {
     issue: string;
     photos: string[];
     selectedServices: string[];
+    prefersOriginalParts: boolean;
+    clientName: string;
   };
   onTechReview: () => void;
   onOpenRejectionModal: () => void;
+  onDeclineRequest: () => void;
+  onClientClick: (clientName: string) => void;
+  resourcesAllocated: boolean;
 }
 
 export function IncomingColumn({
@@ -23,6 +28,9 @@ export function IncomingColumn({
   formData,
   onTechReview,
   onOpenRejectionModal,
+  onDeclineRequest,
+  onClientClick,
+  resourcesAllocated,
 }: IncomingColumnProps) {
   return (
     <div className="flex-1 min-w-[280px]">
@@ -30,11 +38,18 @@ export function IncomingColumn({
         Incoming <span className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-bold">1</span>
       </h4>
 
-      {clientView === 'tracking' && orderStatus === 'new' && (
+      {clientView === 'tracking' && orderStatus === 'new' && !resourcesAllocated && (
         <motion.div layout className="bg-white border-l-4 border-l-amber-500 rounded-xl p-4 border border-gray-200 shadow-sm hover:shadow-md">
-          <div className="flex justify-between items-start mb-2">
+          <div className="flex justify-between items-start mb-1">
             <div className="font-bold text-gray-900">{formData.vehicle} · {formData.vin}</div>
             <span className="text-[10px] px-2 py-1 rounded-full font-bold uppercase bg-amber-100 text-amber-700">New</span>
+          </div>
+          <div 
+            onClick={() => onClientClick(formData.clientName)}
+            className="text-sm font-bold text-red-600 hover:text-red-700 cursor-pointer mb-2 flex items-center gap-1 group"
+          >
+            <Users className="w-3.5 h-3.5" />
+            <span className="group-hover:underline">{formData.clientName}</span>
           </div>
           <p className="text-xs text-gray-600 mb-2">Issue: {formData.issue}</p>
 
@@ -49,8 +64,16 @@ export function IncomingColumn({
                       {service.name}
                     </span>
                   ) : null;
-                })}
-              </div>
+                })}              </div>
+            </div>
+          )}
+
+          {formData.prefersOriginalParts && (
+            <div className="mb-2">
+              <span className="text-[10px] px-2 py-1 bg-purple-100 text-purple-700 rounded-full font-bold uppercase flex items-center gap-1.5 w-fit border border-purple-200">
+                <span className="w-1.5 h-1.5 bg-purple-500 rounded-full"></span>
+                Prefers original parts
+              </span>
             </div>
           )}
 
@@ -93,18 +116,26 @@ export function IncomingColumn({
             return null;
           })()}
 
-          <div className="flex gap-2">
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <button
+                onClick={onTechReview}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow-md"
+              >
+                ✓ Accept
+              </button>
+              <button
+                onClick={onOpenRejectionModal}
+                className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow-md"
+              >
+                ← Request Changes
+              </button>
+            </div>
             <button
-              onClick={onTechReview}
-              className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow-md"
+              onClick={onDeclineRequest}
+              className="w-full border border-red-200 bg-red-50 hover:bg-red-100 text-red-600 py-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1"
             >
-              ✓ Accept
-            </button>
-            <button
-              onClick={onOpenRejectionModal}
-              className="flex-1 bg-amber-600 hover:bg-amber-700 text-white py-2 rounded-lg text-xs font-bold transition-all shadow-sm hover:shadow-md"
-            >
-              ← Request Changes
+              ✕ Decline Request (Spam/Invalid)
             </button>
           </div>
         </motion.div>

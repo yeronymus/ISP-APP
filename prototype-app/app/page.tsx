@@ -18,13 +18,33 @@ export default function PrototypePage() {
     setIsClient(true);
   }, []);
 
+  useEffect(() => {
+    let interval: any;
+    if (state.orderStatus === "in_progress" && state.workStartTime) {
+      interval = setInterval(() => {
+        const elapsed = Math.floor((Date.now() - state.workStartTime) / 1000);
+        // Only update if value changed to avoid redundant re-renders
+        if (elapsed !== state.workElapsedSeconds) {
+          updateState({ workElapsedSeconds: elapsed });
+        }
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [state.orderStatus, state.workStartTime, state.workElapsedSeconds]);
+
   const handlers = createHandlers(state, updateState, showToast);
 
   return (
     <div className="flex flex-col h-screen bg-gray-50 text-gray-900 font-sans overflow-hidden">
       <Toast show={toast.show} msg={toast.msg} />
 
-      <Header step={state.step} onReset={reset} />
+      <Header 
+        step={state.step} 
+        onReset={reset} 
+        onPrevStep={handlers.handlePrevStep}
+        onNextStep={handlers.handleNextStep}
+        canGoNext={state.step < state.maxStepReached}
+      />
 
       <main className="flex-1 flex gap-6 p-6 overflow-auto bg-gray-100">
         <ClientMobileApp
@@ -45,6 +65,7 @@ export default function PrototypePage() {
           showPayment={state.showPayment}
           vehiclePickedUp={state.vehiclePickedUp}
           partsOrdered={state.partsOrdered}
+          requestDeclined={state.requestDeclined}
           opacity={getOpacity(state.focusedRole, "client", state.appointmentNotif, state.appointmentConfirmed)}
           isClient={isClient}
           onFormChange={handlers.handleFormChange}
@@ -57,6 +78,8 @@ export default function PrototypePage() {
           onDeclineAppointment={handlers.handleDeclineAppointment}
           onApproveAdditionalTask={handlers.handleApproveAdditionalTask}
           onDeclineAdditionalTask={handlers.handleDeclineAdditionalTask}
+          onSuggestSlots={handlers.handleSuggestSlots}
+          onOrderParts={handlers.handleOrderParts}
           onPayment={handlers.handlePayment}
           onPickUpVehicle={handlers.handlePickUpVehicle}
           onSelectSlot={handlers.handleSelectSlot}
@@ -66,9 +89,10 @@ export default function PrototypePage() {
           <AdminWebApp
             state={state}
             opacity={getOpacity(state.focusedRole, "admin", state.appointmentNotif, state.appointmentConfirmed)}
-            onViewChange={(view) => setState({ adminView: view })}
+            onViewChange={(view) => updateState({ adminView: view })}
             onTechReview={handlers.handleTechReview}
             onOpenRejectionModal={() => updateState({ showRejectionModal: true })}
+            onDeclineRequest={handlers.handleDeclineRequest}
             onCloseRejectionModal={() => updateState({ showRejectionModal: false, rejectionDraft: "" })}
             onSubmitRejection={() => {
               if (state.rejectionDraft.trim()) {
@@ -81,6 +105,11 @@ export default function PrototypePage() {
             onConfirmSlot={handlers.handleConfirmSlot}
             onAdminSend={handlers.handleAdminSend}
             onAdvisorInitiatePayment={handlers.handleAdvisorInitiatePayment}
+            onUpdateState={updateState}
+            onAdminSetTaskPrice={handlers.handleAdminSetTaskPrice}
+            onAdminSendTaskToClient={handlers.handleAdminSendTaskToClient}
+            onSuggestSlots={handlers.handleSuggestSlots}
+            onOrderParts={handlers.handleOrderParts}
           />
 
           <TechTabletApp
@@ -93,12 +122,12 @@ export default function PrototypePage() {
             additionalTasks={state.additionalTasks}
             showAdditionalTaskModal={state.showAdditionalTaskModal}
             additionalTaskDraft={state.additionalTaskDraft}
-            additionalTaskCostDraft={state.additionalTaskCostDraft}
             opacity={getOpacity(state.focusedRole, "tech", state.appointmentNotif, state.appointmentConfirmed)}
             loggedInMechanics={state.loggedInMechanics}
             currentMechanicView={state.currentMechanicView}
             selectedMechanics={state.selectedMechanics}
             workStartTime={state.workStartTime}
+            additionalTaskPhotosDraft={state.additionalTaskPhotosDraft}
             onIntakePhoto={handlers.handleIntakePhoto}
             onCompleteIntakePhotos={handlers.handleCompleteIntakePhotos}
             onTechCheck={handlers.handleTechCheck}
@@ -106,11 +135,11 @@ export default function PrototypePage() {
             onCloseAdditionalTaskModal={() => updateState({
               showAdditionalTaskModal: false,
               additionalTaskDraft: "",
-              additionalTaskCostDraft: ""
+              additionalTaskPhotosDraft: []
             })}
             onSubmitAdditionalTask={handlers.handleSubmitAdditionalTask}
             onTaskDraftChange={(value) => updateState({ additionalTaskDraft: value })}
-            onCostDraftChange={(value) => updateState({ additionalTaskCostDraft: value })}
+            onAdditionalTaskPhoto={handlers.handleAdditionalTaskPhoto}
             onTechComplete={handlers.handleTechComplete}
             onMechanicLogin={handlers.handleMechanicLogin}
             onMechanicLogout={handlers.handleMechanicLogout}

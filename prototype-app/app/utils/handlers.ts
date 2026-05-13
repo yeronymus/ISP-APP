@@ -9,7 +9,7 @@ export function createHandlers(
   const setState = updateState;
 
   return {
-    handleFormChange: (field: string, value: string | string[]) => {
+    handleFormChange: (field: string, value: string | string[] | boolean) => {
       setState({
         formData: { ...state.formData, [field]: value }
       });
@@ -40,6 +40,7 @@ export function createHandlers(
         clientView: "tracking",
         orderStatus: "new",
         step: 0,
+        maxStepReached: 0,
       });
       showToast("Request submitted - waiting for technician review");
     },
@@ -57,15 +58,17 @@ export function createHandlers(
         selectedBay: availableBay?.id || null,
         selectedMechanics: selectedMechs,
         resourcesAllocated: true,
+        techTaskVisible: false,
+        // orderStatus остается "new", чтобы не прыгать в Scheduled преждевременно
       });
-      showToast("Technician reviewing - resources allocated");
+      showToast("Request accepted - moving to parts and scheduling");
     },
 
     handleCheckParts: () => {
       const unavailableParts = state.requiredParts.filter(p => !p.available);
       if (unavailableParts.length > 0) {
-        // Если детали нужно заказать, показываем слоты после даты доставки
-        const slotsAfterDelivery = mockTimeSlots.filter(s => s.date >= "2026-05-11" && s.available);
+        // Если детали нужно заказать, показываем слоты после даты доставки (14 + 2 дня эстимейт = 17 число)
+        const slotsAfterDelivery = mockTimeSlots.filter(s => s.date >= "2026-05-17" && s.available);
 
         setState({
           partsOrdered: true,
@@ -73,6 +76,7 @@ export function createHandlers(
           availableSlots: slotsAfterDelivery,
           focusedRole: "client",
           clientHasNotif: true,
+          appointmentNotif: true,
         });
         showToast(`Ordering ${unavailableParts.length} parts from factory - ${slotsAfterDelivery.length} slots available after delivery`);
       } else {
@@ -84,6 +88,7 @@ export function createHandlers(
           availableSlots: availableSlots,
           focusedRole: "client",
           clientHasNotif: true,
+          appointmentNotif: true,
         });
         showToast(`All parts available - ${availableSlots.length} slots available for booking`);
       }
@@ -93,13 +98,41 @@ export function createHandlers(
       setState({ selectedSlot: slotId });
     },
 
+    handleSuggestSlots: () => {
+      const unavailableParts = state.requiredParts.filter(p => !p.available);
+      const minDate = unavailableParts.length > 0 ? "2026-05-17" : "2026-05-14";
+      
+      const availableSlots = mockTimeSlots.filter(s => s.date >= minDate && s.available);
+      
+      setState({
+        slotsSuggested: true,
+        offeredSlots: availableSlots,
+        availableSlots: availableSlots,
+        focusedRole: "client",
+        clientHasNotif: true,
+        appointmentNotif: true,
+      });
+      showToast(unavailableParts.length > 0 
+        ? `Suggested slots from ${minDate} (considering parts ETA)` 
+        : "Time slots suggested to client");
+    },
+
+    handleOrderParts: () => {
+      setState({ partsOrdered: true });
+      showToast("Parts ordered from suppliers");
+    },
+
     handleConfirmSlot: () => {
       const slot = state.availableSlots.find(s => s.id === state.selectedSlot);
+      const newStep = 1;
       setState({
         orderStatus: "accepted",
-        step: 1,
+        step: newStep,
+        maxStepReached: Math.max(state.maxStepReached, newStep),
         appointmentConfirmed: true,
         focusedRole: "admin",
+        clientHasNotif: false, 
+        appointmentNotif: false, // Убираем модалку выбора у клиента
       });
       showToast(`✓ Appointment confirmed for ${slot?.date} at ${slot?.time}`);
     },
@@ -122,6 +155,15 @@ export function createHandlers(
         step: 0,
       });
       showToast("Client declined appointment - select new time");
+    },
+
+    handleDeclineRequest: () => {
+      setState({
+        requestDeclined: true,
+        clientHasNotif: true,
+        focusedRole: "client",
+      });
+      showToast("Request declined and archived");
     },
 
     handleRejectForm: (comment: string) => {
@@ -150,9 +192,16 @@ export function createHandlers(
     },
 
     handleAdminSend: () => {
+      if (!state.appointmentConfirmed) {
+        showToast("Cannot start repair: Appointment not confirmed by client/advisor", 3000);
+        return;
+      }
+      
+      const newStep = 2;
       setState({
         orderStatus: "in_progress",
-        step: 2,
+        step: newStep,
+        maxStepReached: Math.max(state.maxStepReached, newStep),
         techTaskVisible: true,
         focusedRole: "tech",
         clientView: "tracking",
@@ -185,24 +234,35 @@ export function createHandlers(
     },
 
     handleSubmitAdditionalTask: () => {
-      if (state.additionalTaskDraft.trim() && state.additionalTaskCostDraft.trim()) {
+      if (state.additionalTaskDraft.trim()) {
         const newTask: AdditionalTask = {
           id: `task-${Date.now()}`,
           description: state.additionalTaskDraft,
-          estimatedCost: parseFloat(state.additionalTaskCostDraft),
+          estimatedCost: 0,
           approved: false,
           declined: false,
+          sentToAdmin: true,
+          sentToClient: false,
+          photos: [...state.additionalTaskPhotosDraft],
         };
         setState({
           additionalTasks: [...state.additionalTasks, newTask],
           showAdditionalTaskModal: false,
           additionalTaskDraft: "",
-          additionalTaskCostDraft: "",
-          clientHasNotif: true,
-          focusedRole: "client",
+          additionalTaskPhotosDraft: [],
+          focusedRole: "admin",
         });
-        showToast("Additional task sent to client for approval");
+        showToast("Task sent to Service Advisor for pricing");
       }
+    },
+
+    handleAdditionalTaskPhoto: () => {
+      const photoId = Math.floor(Math.random() * 10) + 1;
+      const photoUrl = `https://images.unsplash.com/photo-1517524008436-bbdb53c5aed5?auto=format&fit=crop&q=80&w=300&sig=${photoId}`;
+      setState({
+        additionalTaskPhotosDraft: [...state.additionalTaskPhotosDraft, photoUrl]
+      });
+      showToast("Photo attached to task");
     },
 
     handleApproveAdditionalTask: (taskId: string) => {
@@ -224,6 +284,25 @@ export function createHandlers(
       });
       showToast("Additional task declined by client");
     },
+    
+    handleAdminSetTaskPrice: (taskId: string, price: number) => {
+      setState({
+        additionalTasks: state.additionalTasks.map(t =>
+          t.id === taskId ? { ...t, estimatedCost: price } : t
+        )
+      });
+    },
+
+    handleAdminSendTaskToClient: (taskId: string) => {
+      setState({
+        additionalTasks: state.additionalTasks.map(t =>
+          t.id === taskId ? { ...t, sentToClient: true, sentToAdmin: false } : t
+        ),
+        clientHasNotif: true,
+        focusedRole: "client",
+      });
+      showToast("Price set and task sent to client for approval");
+    },
 
     handleTechCheck: () => {
       const totalTasks = 2 + state.additionalTasks.filter(t => t.approved).length;
@@ -234,9 +313,11 @@ export function createHandlers(
     },
 
     handleTechComplete: () => {
+      const newStep = 3;
       setState({
         orderStatus: "done",
-        step: 3,
+        step: newStep,
+        maxStepReached: Math.max(state.maxStepReached, newStep),
         clientHasNotif: true,
         focusedRole: "all"
       });
@@ -281,11 +362,11 @@ export function createHandlers(
     },
 
     handleMechanicLogin: (mechanicId: string) => {
-      const alreadyLoggedIn = state.loggedInMechanics.some(m => m.mechanicId === mechanicId);
+      const alreadyLoggedIn = (state.loggedInMechanics || []).some(m => m.mechanicId === mechanicId);
       if (!alreadyLoggedIn) {
         setState({
           loggedInMechanics: [
-            ...state.loggedInMechanics,
+            ...(state.loggedInMechanics || []),
             { mechanicId, loginTime: new Date().toISOString() }
           ],
           currentMechanicView: mechanicId,
@@ -304,6 +385,20 @@ export function createHandlers(
 
     handleSwitchMechanicView: (mechanicId: string | null) => {
       setState({ currentMechanicView: mechanicId });
+    },
+
+    handlePrevStep: () => {
+      if (state.step > 0) {
+        setState({ step: state.step - 1 });
+        showToast(`Back to Step ${state.step - 1}`);
+      }
+    },
+
+    handleNextStep: () => {
+      if (state.step < state.maxStepReached) {
+        setState({ step: state.step + 1 });
+        showToast(`Forward to Step ${state.step + 1}`);
+      }
     },
   };
 }
